@@ -18,13 +18,12 @@ import android.view.MotionEvent;
 import android.widget.ImageView;
 
 
-
 public class RoundMenuView extends ImageView implements OnGestureListener {
-    private static final int childMenuSize = 8;
+    private int childMenuSize;
     /**
      * 单个条目的度数
      */
-    private static final float childAngle = 360f / childMenuSize;
+    private float childAngle;
     private float offsetAngle = 0;
     private Paint paint;
     private GestureDetector gestureDetector;
@@ -48,11 +47,28 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
     private int panddingContent;
     //非选中区域的画笔
     private Paint contentPaint;
+    private Paint textpaint;
+    //菜单的适配器
+    private RoundMenuAdapter mAdapter;
+    private Paint selectPaint;
 
     public RoundMenuView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        // TODO Auto-generated constructor stub
+//        childMenuSize = 4;
+//        childAngle = 360f / childMenuSize;
         init();
+    }
+
+    /**
+     * 设置适配器
+     */
+    public void setMenuAdapter(RoundMenuAdapter mAdapter) {
+        this.mAdapter = mAdapter;
+        childMenuSize = mAdapter.getMenuBeanListSize();
+        childAngle = 360f / childMenuSize;
+        //根据正点角度算出当前选中条目
+        selectId = whichSector(0, -60, 80);
+        invalidate();
     }
 
     private void init() {
@@ -69,7 +85,12 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         //设置星星背景的宽度
         panddingHight = DensityUtil.dip2px(getContext(), 38);
         panddingBg = (panddingHight - start.getHeight()) / 2;
-        panddingContent = DensityUtil.dip2px(getContext(),10);
+        panddingContent = DensityUtil.dip2px(getContext(), 10);
+        //选中区域的paint
+        selectPaint = new Paint();
+        selectPaint.setColor(getResources().getColor(R.color.overlay_white_select));
+        selectPaint.setAntiAlias(true);
+        selectPaint.setFlags(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         //内容的画笔
         contentPaint = new Paint();
         contentPaint.setColor(getResources().getColor(R.color.bgColor_overlay));
@@ -78,6 +99,13 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         contentPaint.setStyle(Style.STROKE);
         contentPaint.setAlpha(9);
         contentPaint.setStrokeWidth(DensityUtil.dip2px(getContext(), 2));
+        //文字的画笔
+        textpaint = new Paint();
+        textpaint.setColor(getResources().getColor(R.color.bgColor_overlay));
+        textpaint.setAntiAlias(true);
+        textpaint.setFlags(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        textpaint.setTextSize(DensityUtil.sp2px(getContext(), 14));
+
         //星星的背景
         paintBg = new Paint();
         paintBg.setAntiAlias(true);
@@ -93,12 +121,9 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         /**
          * 绘制每个块块，每个块块上的文本
          */
-
         for (int i = 1; i < 8; i++) {
-
             drawRect(canvas, i, selectId);
         }
-
 
     }
 
@@ -129,7 +154,11 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
             float y = (float) (radius - Math.sin(temp * Math.PI / 180) * radius + panddingBg / 2);
             mRectf = new RectF(x - start.getWidth(), y, x, y + start.getHeight());
         }
-        canvas.drawBitmap(selectId < i ? start : startSelect, null, mRectf, null);
+        if (selectId == -1) {
+            canvas.drawBitmap(start, null, mRectf, null);
+            return;
+        }
+        canvas.drawBitmap(i <= mAdapter.getMenuBeanList().get(selectId).getStarCount() ? startSelect : start, null, mRectf, null);
     }
 
     /**
@@ -146,8 +175,6 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         float tmpAngle = offsetAngle;
 
         for (int i = 0; i < childMenuSize; i++) {
-
-
 //            if (i == selectId) { //如果是选中就将扇形画成实心的,否则画空心的扇形
 //                paint.setColor(Color.BLUE);
 //                paint.setStyle(Style.FILL);
@@ -158,18 +185,24 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
 //                        true, contentPaint);
 //            }
             canvas.drawArc(rectF, i * childAngle + offsetAngle, childAngle,
-                    true, i == selectId ? paint : contentPaint);
-            String str = "菜单" + i;
+                    true, contentPaint);
+            //绘制文字
+            String str = mAdapter.getMenuBeanList().get(i).getItemName();
             Path path = new Path();
             path.addArc(rectF, tmpAngle, sweepAngle);
             //计算文字宽高
             Rect rect = new Rect();
-            paint.getTextBounds(str, 0, str.length(), rect);
+            textpaint.getTextBounds(str, 0, str.length(), rect);
             int strW = rect.width();
-            paint.setColor(Color.WHITE);
+
             float hOffset = (float) ((diameter - 160) * Math.PI / childMenuSize / 2 - strW / 2);// 水平偏移
             float vOffset = radius / childMenuSize;// 垂直偏移
-            canvas.drawTextOnPath(str, path, hOffset, vOffset, paint);
+            if (selectId != i) {
+                textpaint.setColor(getResources().getColor(R.color.default_black));
+            } else {
+                textpaint.setColor(getResources().getColor(R.color.default_txt_orange_color));
+            }
+            canvas.drawTextOnPath(str, path, hOffset, vOffset, textpaint);
             tmpAngle += sweepAngle;
         }
     }
@@ -181,7 +214,7 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
 //                selectId = whichSector(event.getX() - radius, event.getY() - radius, radius);
-                invalidate();
+//                invalidate();
                 break;
             case MotionEvent.ACTION_MOVE:
                 break;
@@ -194,6 +227,9 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
 
     @Override
     protected void onDraw(Canvas canvas) {
+        if (mAdapter == null) {
+            return;
+        }
         //绘制星星的背景(第一层)
         drawSatrBg(canvas);
         RectF mRectf = new RectF(panddingHight + panddingContent,
@@ -223,7 +259,11 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         paint.setColor(Color.WHITE);
         paint.setStyle(Style.FILL);
         canvas.drawCircle(radius, radius, 25, paint);
-
+        //绘制选中区域
+        canvas.drawArc(mRectf,
+                360 - (180 - childAngle) / 2 - childAngle,
+                childAngle - DensityUtil.dip2px(getContext(), 2),
+                true, selectPaint);
         // 画三角形
         Path path = new Path();
         path.moveTo(radius - 25, radius);// 此点为多边形的起点
@@ -235,8 +275,6 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
         // 画中心内圆
         paint.setColor(getResources().getColor(R.color.default_txt_orange_color));
         canvas.drawCircle(radius, radius, 20, paint);
-
-
     }
 
     /**
@@ -356,7 +394,7 @@ public class RoundMenuView extends ImageView implements OnGestureListener {
             offset_angle = offsetAngle % 360;
         }
         if (mod > R) { //如果复数的模大于预设的半径，则返回0。
-            return -2;
+            return -1;
         } else { //根据复数的辐角来判别该点落在那个扇区。
             for (int i = 0; i < childMenuSize; i++) {
                 if (isSelect(arg, i, offset_angle) || isSelect(360 + arg, i, offset_angle)) {

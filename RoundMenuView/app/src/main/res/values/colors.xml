@@ -6,5 +6,7 @@
     <color name="bgColor_overlay">#60000000</color>
     <color name="bgColor_overlay_gray">#88f1f1f1</color>
     <color name="bgColor_overlay_white">#88ffffff</color>
+    <color name="overlay_white_select">#44ffffff</color>
+    <color name="default_black">#000000</color>
     <color name="default_txt_orange_color">#ff7b1b</color>  <!-- 主色 价格、按钮-橙 -->
 </resources>
